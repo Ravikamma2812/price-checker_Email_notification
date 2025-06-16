@@ -1,0 +1,63 @@
+from selenium import webdriver
+from selenium.webdriver.common.by import By
+from selenium.webdriver.chrome.service import Service
+import time
+import smtplib
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
+
+# --- CONFIGURATION ---
+PRODUCT_URL = "https://www.amazon.in/dp/B0CYTFJYPB"  # Shortened version of your product link
+TARGET_PRICE = 1200  # Target price in ₹
+
+# Your Gmail credentials
+SENDER_EMAIL = 'ravikamma.2002@gmail.com'
+APP_PASSWORD = 'okla grmk gdyh blva'  # App password, not your Gmail password
+RECEIVER_EMAIL = 'tejakamma.2002@gmail.com'
+
+# --- SETUP SELENIUM ---
+service = Service("C:\\Users\\ravit\\Downloads\\chromedriver.exe")
+options = webdriver.ChromeOptions()
+options.add_argument("--headless")  # Run in background
+
+driver = webdriver.Chrome(service=service, options=options)
+
+driver.get(PRODUCT_URL)
+time.sleep(3)  # Wait for page to load
+
+try:
+    # Try to find full price from parent container
+    price_element = driver.find_element(By.CLASS_NAME, "a-price-whole")
+    fraction_element = driver.find_element(By.CLASS_NAME, "a-price-fraction")
+    price_text = price_element.text + "." + fraction_element.text  # Combine whole and fraction
+    price_number = float(price_text.replace(',', '').strip())
+    
+    print(f"Found price: Rs.{price_number}")
+
+    # --- CHECK PRICE & SEND EMAIL ---
+    if price_number <= TARGET_PRICE:
+        print("Price dropped! Sending email...")
+
+        # Compose email
+        msg = MIMEMultipart()
+        msg['From'] = SENDER_EMAIL
+        msg['To'] = RECEIVER_EMAIL
+        msg['Subject'] = 'Price Drop Alert!'
+        body = f"The price has dropped to Rs{price_number}!\nCheck the product here:\n{PRODUCT_URL}"
+        msg.attach(MIMEText(body, 'plain'))
+
+        # Send email
+        server = smtplib.SMTP('smtp.gmail.com', 587)
+        server.starttls()
+        server.login(SENDER_EMAIL, APP_PASSWORD)
+        server.send_message(msg)
+        server.quit()
+
+        print("Email sent successfully.")
+    else:
+        print("Price is still higher than target.")
+
+except Exception as e:
+    print("Error occurred while extracting the price:", e)
+
+driver.quit()
